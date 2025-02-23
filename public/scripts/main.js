@@ -11,6 +11,7 @@ const confirmModal = document.getElementById("confirm-modal");
 const deleteRoomModal = document.getElementById("delete-room-modal");
 const leaveRoomModal = document.getElementById("leave-room-modal");
 const newGameModal = document.getElementById("new-game-modal");
+const winModal = document.getElementById("win-modal");
 const roomInput = document.getElementById("room-input");
 const joinRequestText = document.getElementById("join-request-text");
 const deleteRoomBtn = document.getElementById("delete-room-btn");
@@ -75,6 +76,9 @@ document
 document
   .getElementById("new-game-cancel-btn")
   .addEventListener("click", closeNewGameModal);
+document
+  .getElementById("win-close-btn")
+  .addEventListener("click", closeWinModal);
 
 function createGrid() {
   grid.innerHTML = "";
@@ -158,8 +162,6 @@ function inputNumber(value) {
       });
     }
   }
-  document.querySelectorAll(".cell")[selectedCell].classList.remove("selected");
-  selectedCell = null;
 }
 
 function undoMove() {
@@ -215,8 +217,14 @@ function checkWin() {
       if (board[i][j] !== solution[i][j]) return;
     }
   }
-  messageDiv.textContent = "Поздравляем! Вы победили!";
-  messageDiv.classList.add("active");
+  winModal.style.display = "flex";
+  if (roomId) {
+    socket.emit("gameWon", { room: roomId });
+  }
+}
+
+function closeWinModal() {
+  winModal.style.display = "none";
 }
 
 function showNewGameModal() {
@@ -346,8 +354,11 @@ function rejectJoinRequest() {
 }
 
 function setNickname() {
-  nickname = nicknameInput.value || "Игрок" + Math.floor(Math.random() * 1000);
-  localStorage.setItem("nickname", nickname);
+  if (!roomId) {
+    nickname =
+      nicknameInput.value || "Игрок" + Math.floor(Math.random() * 1000);
+    localStorage.setItem("nickname", nickname);
+  }
   if (roomId) {
     socket.emit("syncState", {
       room: roomId,
@@ -412,6 +423,10 @@ socket.on("syncState", (data) => {
   difficultySelect.value = data.difficulty;
   moveHistory = data.moveHistory || [];
   displayBoard();
+  // Восстанавливаем выделение после синхронизации
+  if (selectedCell !== null) {
+    selectCell(selectedCell);
+  }
   updateNumberPanel();
   messageDiv.textContent = "";
   messageDiv.classList.remove("active");
@@ -436,6 +451,12 @@ socket.on("roomClosed", () => {
   messageDiv.textContent = "Комната была закрыта владельцем.";
   messageDiv.classList.add("active");
   resetRoomState();
+});
+
+socket.on("gameWon", (data) => {
+  if (data.room === roomId) {
+    winModal.style.display = "flex";
+  }
 });
 
 function updatePlayersList(players) {

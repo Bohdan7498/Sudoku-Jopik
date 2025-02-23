@@ -148,6 +148,11 @@ io.on("connection", (socket) => {
         io.to(data.room).emit("remoteClick", data);
     });
 
+    socket.on("gameWon", (data) => {
+        io.to(data.room).emit("gameWon", data);
+        console.log(`Игра в комнате ${data.room} завершена`);
+    });
+
     socket.on("disconnect", () => {
         console.log("Игрок отключился:", socket.id);
         for (let room in rooms) {

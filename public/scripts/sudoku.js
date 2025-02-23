@@ -117,5 +117,8 @@ function displayBoard() {
       board[row][col] !== 0 && solution[row][col] === board[row][col],
     );
     cell.classList.remove("highlight", "match", "remote-click");
+    if (index === selectedCell) {
+      cell.classList.add("selected");
+    }
   });
 }

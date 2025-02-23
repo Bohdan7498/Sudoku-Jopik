@@ -21,7 +21,6 @@ body {
   border-radius: 16px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
   min-height: calc(100vh - 40px);
-  /* Учитываем общий padding */
 }
 
 .header {
@@ -105,7 +104,7 @@ select {
   border-radius: 8px;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   position: relative;
   overflow: hidden;
@@ -114,17 +113,19 @@ select {
 button:hover,
 select:hover {
   background: #00cc99;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 204, 153, 0.4);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 204, 153, 0.6);
 }
 
 select {
   background: #2a2a2a;
   appearance: none;
-  padding-right: 30px;
+  padding-right: 40px;
+  /* Увеличено для корректного размещения стрелки */
   background-image: url('data:image/svg+xml;utf8,<svg fill="%23ffffff" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
   background-repeat: no-repeat;
-  background-position: right 10px center;
+  background-position: right 12px center;
+  background-size: 20px;
 }
 
 #new-game-btn.confirming::after {
@@ -135,6 +136,8 @@ select {
   transform: translate(-50%, -50%);
   font-size: 18px;
   color: #fff;
+  opacity: 0;
+  animation: fadeIn 0.3s ease forwards;
 }
 
 #new-game-btn.confirming {
@@ -148,8 +151,18 @@ select {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 204, 153, 0.3);
   animation: timerAnimation 3s linear forwards;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes timerAnimation {
@@ -298,7 +311,7 @@ select {
   justify-content: center;
   font-size: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -306,7 +319,7 @@ select {
 .number-btn.active {
   background: #00cc99;
   transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(0, 204, 153, 0.4);
+  box-shadow: 0 6px 16px rgba(0, 204, 153, 0.6);
 }
 
 #undo-btn {
@@ -321,7 +334,7 @@ select {
   justify-content: center;
   font-size: 18px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s ease-in-out;
   box-shadow: 0 4px 12px rgba(255, 85, 85, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.3);
 }
 
@@ -407,6 +420,13 @@ select {
   font-size: 16px;
 }
 
+.win-gif {
+  width: 100%;
+  max-width: 200px;
+  margin: 20px auto;
+  display: block;
+}
+
 .loader {
   width: 40px;
   height: 40px;
@@ -433,25 +453,18 @@ select {
   justify-content: center;
 }
 
-.modal-buttons button {
+.modal-buttons button,
+#win-close-btn {
   padding: 10px 20px;
   font-size: 16px;
-}
-
-#modal-join-btn,
-#confirm-accept-btn,
-#delete-confirm-btn,
-#leave-confirm-btn,
-#new-game-confirm-btn {
   background: #00cc99;
+  transition: all 0.3s ease-in-out;
 }
 
-#modal-join-btn:hover,
-#confirm-accept-btn:hover,
-#delete-confirm-btn:hover,
-#leave-confirm-btn:hover,
-#new-game-confirm-btn:hover {
+.modal-buttons button:hover,
+#win-close-btn:hover {
   background: #00e6b3;
+  transform: scale(1.05);
 }
 
 #modal-cancel-btn,
@@ -468,6 +481,7 @@ select {
 #leave-cancel-btn:hover,
 #new-game-cancel-btn:hover {
   background: #666;
+  transform: scale(1.05);
 }
 
 @media (max-width: 768px) {

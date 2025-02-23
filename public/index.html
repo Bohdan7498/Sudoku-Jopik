@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Судоку Онлайн</title>
+		<link rel="stylesheet" href="styles.css" />
+	</head>
+	<body>
+		<div class="app-container">
+			<header class="header">
+				<h1>Судоку Онлайн</h1>
+				<div class="top-menu">
+					<div class="menu-section">
+						<div id="nickname-container">
+							<input id="nickname" type="text" placeholder="Введите никнейм" />
+						</div>
+					</div>
+					<div class="menu-section controls-section" id="controls">
+						<select id="difficulty">
+							<option value="very-easy">Очень лёгкий</option>
+							<option value="easy">Лёгкий</option>
+							<option value="medium">Средний</option>
+							<option value="hard">Сложный</option>
+							<option value="expert">Эксперт</option>
+						</select>
+						<button id="new-game-btn">Новая игра</button>
+						<button id="create-room-btn">Создать комнату</button>
+						<button id="join-room-btn">Присоединиться</button>
+						<button id="delete-room-btn" style="display: none">
+							Удалить комнату
+						</button>
+						<button id="leave-room-btn" style="display: none">
+							Покинуть комнату
+						</button>
+					</div>
+				</div>
+			</header>
+			<main class="main-content">
+				<div class="game-container">
+					<div class="sudoku-section">
+						<div id="sudoku-grid"></div>
+						<div class="numbers-section">
+							<div id="numbers-container">
+								<button id="undo-btn">↺</button>
+								<div id="numbers"></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="info-section">
+						<div id="info-panel">
+							<div id="message" class="info-block"></div>
+							<div id="room" class="info-block"></div>
+							<div id="players" class="info-block"></div>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<!-- Модальное окно для присоединения -->
+		<div id="join-modal" class="modal">
+			<div class="modal-content">
+				<h2>Присоединиться к комнате</h2>
+				<input id="room-input" type="text" placeholder="Введите ID комнаты" />
+				<div class="modal-buttons">
+					<button id="modal-join-btn">Присоединиться</button>
+					<button id="modal-cancel-btn">Отмена</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модальное окно ожидания подтверждения -->
+		<div id="waiting-modal" class="modal">
+			<div class="modal-content">
+				<h2>Ожидание подтверждения</h2>
+				<p>Ожидаем, пока владелец комнаты примет ваш запрос...</p>
+				<div class="loader"></div>
+			</div>
+		</div>
+
+		<!-- Модальное окно подтверждения для владельца -->
+		<div id="confirm-modal" class="modal">
+			<div class="modal-content">
+				<h2>Запрос на присоединение</h2>
+				<p id="join-request-text"></p>
+				<div class="modal-buttons">
+					<button id="confirm-accept-btn">Принять</button>
+					<button id="confirm-reject-btn">Отклонить</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модальное окно подтверждения удаления комнаты -->
+		<div id="delete-room-modal" class="modal">
+			<div class="modal-content">
+				<h2>Удалить комнату</h2>
+				<p>
+					Вы уверены, что хотите удалить комнату? Все игроки будут отключены.
+				</p>
+				<div class="modal-buttons">
+					<button id="delete-confirm-btn">Удалить</button>
+					<button id="delete-cancel-btn">Отмена</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модальное окно подтверждения выхода из комнаты -->
+		<div id="leave-room-modal" class="modal">
+			<div class="modal-content">
+				<h2>Покинуть комнату</h2>
+				<p>Вы уверены, что хотите покинуть комнату?</p>
+				<div class="modal-buttons">
+					<button id="leave-confirm-btn">Покинуть</button>
+					<button id="leave-cancel-btn">Отмена</button>
+				</div>
+			</div>
+		</div>
+
+		<!-- Модальное окно подтверждения новой игры -->
+		<div id="new-game-modal" class="modal">
+			<div class="modal-content">
+				<h2>Новая игра</h2>
+				<p>
+					Вы уверены, что хотите начать новую игру? Текущий прогресс будет
+					потерян.
+				</p>
+				<div class="modal-buttons">
+					<button id="new-game-confirm-btn">Начать</button>
+					<button id="new-game-cancel-btn">Отмена</button>
+				</div>
+			</div>
+		</div>
+
+		<script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+		<script src="scripts/sudoku.js"></script>
+		<script src="scripts/socket.js"></script>
+		<script src="scripts/main.js"></script>
+	</body>
+</html>

@@ -1,7 +1,7 @@
 const grid = document.getElementById("sudoku-grid");
 const numbersPanel = document.getElementById("numbers");
 const difficultySelect = document.getElementById("difficulty");
-const playersList = document.getElementById("players");
+const playersList = document.getElementById("players-list");
 const nicknameInput = document.getElementById("nickname");
 const messageDiv = document.getElementById("message");
 const roomDiv = document.getElementById("room");
@@ -17,6 +17,7 @@ const joinRequestText = document.getElementById("join-request-text");
 const deleteRoomBtn = document.getElementById("delete-room-btn");
 const leaveRoomBtn = document.getElementById("leave-room-btn");
 const newGameBtn = document.getElementById("new-game-btn");
+const themeSelect = document.getElementById("theme-select");
 
 let board = [];
 let solution = [];
@@ -27,6 +28,7 @@ let nickname =
   "Игрок" + Math.floor(Math.random() * 1000);
 let moveHistory = [];
 let isRoomOwner = false;
+let joinRequestQueue = [];
 
 document
   .getElementById("new-game-btn")
@@ -79,6 +81,7 @@ document
 document
   .getElementById("win-close-btn")
   .addEventListener("click", closeWinModal);
+themeSelect.addEventListener("change", changeTheme);
 
 function createGrid() {
   grid.innerHTML = "";
@@ -266,12 +269,20 @@ function syncDifficulty() {
 function createRoom() {
   roomId = Math.random().toString(36).substr(2, 5);
   isRoomOwner = true;
-  socket.emit("createRoom", { room: roomId, nickname });
+  socket.emit("createRoom", {
+    room: roomId,
+    nickname,
+    board,
+    solution,
+    difficulty: difficultySelect.value,
+    moveHistory,
+  });
   roomDiv.textContent = `Комната: ${roomId}`;
   roomDiv.classList.add("active");
   deleteRoomBtn.style.display = "inline-block";
   leaveRoomBtn.style.display = "none";
   document.getElementById("create-room-btn").style.display = "none";
+  updatePlayersList([nickname]);
   console.log(`Создана комната ${roomId}`);
 }
 
@@ -337,20 +348,34 @@ function resetRoomState() {
   document.getElementById("create-room-btn").style.display = "inline-block";
   roomDiv.textContent = "";
   roomDiv.classList.remove("active");
-  playersList.textContent = "";
-  playersList.classList.remove("active");
+  playersList.innerHTML = "";
+  playersList.parentElement.classList.remove("active");
+  joinRequestQueue = [];
 }
 
 function acceptJoinRequest() {
   const requesterNickname = joinRequestText.dataset.requester;
   socket.emit("acceptJoin", { room: roomId, nickname: requesterNickname });
   confirmModal.style.display = "none";
+  joinRequestQueue.shift();
+  processNextJoinRequest();
 }
 
 function rejectJoinRequest() {
   const requesterNickname = joinRequestText.dataset.requester;
   socket.emit("rejectJoin", { room: roomId, nickname: requesterNickname });
   confirmModal.style.display = "none";
+  joinRequestQueue.shift();
+  processNextJoinRequest();
+}
+
+function processNextJoinRequest() {
+  if (joinRequestQueue.length > 0) {
+    const nextRequest = joinRequestQueue[0];
+    joinRequestText.textContent = `Пользователь "${nextRequest.nickname}" хочет присоединиться к вашей комнате.`;
+    joinRequestText.dataset.requester = nextRequest.nickname;
+    confirmModal.style.display = "flex";
+  }
 }
 
 function setNickname() {
@@ -372,6 +397,51 @@ function setNickname() {
   }
 }
 
+function changeTheme() {
+  const theme = themeSelect.value;
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("theme", theme);
+}
+
+function kickPlayer(event) {
+  const playerToKick = event.target.dataset.nickname;
+  if (playerToKick && roomId && isRoomOwner) {
+    socket.emit("kickPlayer", { room: roomId, nickname: playerToKick });
+    console.log(`Игрок ${playerToKick} выгнан из комнаты ${roomId}`);
+  }
+}
+
+function updatePlayersList(players) {
+  playersList.innerHTML = "";
+  if (!Array.isArray(players)) {
+    const li = document.createElement("li");
+    li.textContent = "Нет данных";
+    playersList.appendChild(li);
+    playersList.parentElement.classList.add("active");
+    return;
+  }
+
+  playersList.parentElement.classList.add("active");
+  players.forEach((player) => {
+    const li = document.createElement("li");
+    const span = document.createElement("span");
+    span.textContent = player;
+    li.appendChild(span);
+    if (isRoomOwner && player !== nickname) {
+      const kickBtn = document.createElement("button");
+      kickBtn.textContent = "Выгнать";
+      kickBtn.dataset.nickname = player;
+      kickBtn.addEventListener("click", kickPlayer);
+      li.appendChild(kickBtn);
+    }
+    playersList.appendChild(li);
+  });
+}
+
+const savedTheme = localStorage.getItem("theme") || "default";
+themeSelect.value = savedTheme;
+document.documentElement.setAttribute("data-theme", savedTheme);
+
 socket.on("roomCreated", (room) => {
   roomId = room;
   isRoomOwner = true;
@@ -380,24 +450,28 @@ socket.on("roomCreated", (room) => {
   deleteRoomBtn.style.display = "inline-block";
   leaveRoomBtn.style.display = "none";
   document.getElementById("create-room-btn").style.display = "none";
+  updatePlayersList([nickname]);
   console.log(`Успешно создана комната ${roomId}`);
 });
 
 socket.on("joinRequest", (data) => {
   if (isRoomOwner) {
-    joinRequestText.textContent = `Пользователь "${data.nickname}" хочет присоединиться к вашей комнате.`;
-    joinRequestText.dataset.requester = data.nickname;
-    confirmModal.style.display = "flex";
+    joinRequestQueue.push(data);
+    if (joinRequestQueue.length === 1) {
+      joinRequestText.textContent = `Пользователь "${data.nickname}" хочет присоединиться к вашей комнате.`;
+      joinRequestText.dataset.requester = data.nickname;
+      confirmModal.style.display = "flex";
+    }
   }
 });
 
 socket.on("joinAccepted", (data) => {
   waitingModal.style.display = "none";
   roomId = data.room;
-  board = data.board;
-  solution = data.solution;
+  board = data.board || [];
+  solution = data.solution || [];
   moveHistory = data.moveHistory || [];
-  difficultySelect.value = data.difficulty;
+  difficultySelect.value = data.difficulty || "easy";
   roomDiv.textContent = `Комната: ${roomId}`;
   roomDiv.classList.add("active");
   deleteRoomBtn.style.display = "none";
@@ -418,12 +492,11 @@ socket.on("joinRejected", () => {
 
 socket.on("syncState", (data) => {
   console.log("Получено syncState:", data);
-  board = data.board;
-  solution = data.solution;
-  difficultySelect.value = data.difficulty;
+  board = data.board || [];
+  solution = data.solution || [];
+  difficultySelect.value = data.difficulty || "easy";
   moveHistory = data.moveHistory || [];
   displayBoard();
-  // Восстанавливаем выделение после синхронизации
   if (selectedCell !== null) {
     selectCell(selectedCell);
   }
@@ -432,10 +505,9 @@ socket.on("syncState", (data) => {
   messageDiv.classList.remove("active");
   if (data.players && data.players.length > 0) {
     updatePlayersList(data.players);
-    playersList.classList.add("active");
   } else {
-    playersList.textContent = "";
-    playersList.classList.remove("active");
+    playersList.innerHTML = "";
+    playersList.parentElement.classList.remove("active");
   }
 });
 
@@ -459,14 +531,13 @@ socket.on("gameWon", (data) => {
   }
 });
 
-function updatePlayersList(players) {
-  if (!Array.isArray(players)) {
-    playersList.textContent = "Игроки: нет данных";
-    playersList.classList.add("active");
-    return;
+socket.on("kickedFromRoom", (data) => {
+  if (data.room === roomId) {
+    messageDiv.textContent = "Вы были выгнаны из комнаты владельцем.";
+    messageDiv.classList.add("active");
+    resetRoomState();
   }
-  playersList.textContent = `Игроки: ${players.join(", ") || "нет игроков"}`;
-}
+});
 
 createGrid();
 createNumberPanel();

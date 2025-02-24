@@ -32,6 +32,7 @@ io.on("connection", (socket) => {
             players: [data.nickname],
             moveHistory: [],
             owner: socket.id,
+            joinRequests: [], // Очередь запросов на присоединение
         };
         socket.join(room);
         socket.emit("roomCreated", room);
@@ -43,8 +44,14 @@ io.on("connection", (socket) => {
         if (rooms[room]) {
             const ownerSocket = io.sockets.sockets.get(rooms[room].owner);
             if (ownerSocket) {
+                rooms[room].joinRequests.push({
+                    nickname: data.nickname,
+                    socketId: socket.id,
+                });
                 ownerSocket.emit("joinRequest", { nickname: data.nickname });
-                socket.joinRequestRoom = room;
+                console.log(
+                    `Запрос на присоединение от ${data.nickname} в комнату ${room}`,
+                );
             } else {
                 socket.emit("joinRejected");
             }
@@ -56,23 +63,32 @@ io.on("connection", (socket) => {
     socket.on("acceptJoin", (data) => {
         const room = data.room;
         if (rooms[room] && rooms[room].owner === socket.id) {
-            rooms[room].players.push(data.nickname);
-            const requesterSocket = Array.from(
-                io.sockets.sockets.values(),
-            ).find((s) => s.joinRequestRoom === room);
-            if (requesterSocket) {
-                requesterSocket.join(room);
-                requesterSocket.joinRequestRoom = null;
-                requesterSocket.emit("joinAccepted", {
-                    room: room,
-                    board: rooms[room].board,
-                    solution: rooms[room].solution,
-                    difficulty: rooms[room].difficulty,
-                    moveHistory: rooms[room].moveHistory,
-                    players: rooms[room].players,
-                });
-                io.to(room).emit("syncState", rooms[room]);
-                console.log(`${data.nickname} присоединён к комнате ${room}`);
+            const request = rooms[room].joinRequests.find(
+                (r) => r.nickname === data.nickname,
+            );
+            if (request) {
+                rooms[room].players.push(data.nickname);
+                const requesterSocket = io.sockets.sockets.get(
+                    request.socketId,
+                );
+                if (requesterSocket) {
+                    requesterSocket.join(room);
+                    requesterSocket.emit("joinAccepted", {
+                        room: room,
+                        board: rooms[room].board,
+                        solution: rooms[room].solution,
+                        difficulty: rooms[room].difficulty,
+                        moveHistory: rooms[room].moveHistory,
+                        players: rooms[room].players,
+                    });
+                    io.to(room).emit("syncState", rooms[room]);
+                    console.log(
+                        `${data.nickname} присоединён к комнате ${room}`,
+                    );
+                }
+                rooms[room].joinRequests = rooms[room].joinRequests.filter(
+                    (r) => r.nickname !== data.nickname,
+                );
             }
         }
     });
@@ -80,14 +96,21 @@ io.on("connection", (socket) => {
     socket.on("rejectJoin", (data) => {
         const room = data.room;
         if (rooms[room] && rooms[room].owner === socket.id) {
-            const requesterSocket = Array.from(
-                io.sockets.sockets.values(),
-            ).find((s) => s.joinRequestRoom === room);
-            if (requesterSocket) {
-                requesterSocket.emit("joinRejected");
-                requesterSocket.joinRequestRoom = null;
-                console.log(
-                    `Запрос ${data.nickname} на присоединение к комнате ${room} отклонён`,
+            const request = rooms[room].joinRequests.find(
+                (r) => r.nickname === data.nickname,
+            );
+            if (request) {
+                const requesterSocket = io.sockets.sockets.get(
+                    request.socketId,
+                );
+                if (requesterSocket) {
+                    requesterSocket.emit("joinRejected");
+                    console.log(
+                        `Запрос ${data.nickname} на присоединение к комнате ${room} отклонён`,
+                    );
+                }
+                rooms[room].joinRequests = rooms[room].joinRequests.filter(
+                    (r) => r.nickname !== data.nickname,
                 );
             }
         }
@@ -113,6 +136,27 @@ io.on("connection", (socket) => {
         }
     });
 
+    socket.on("kickPlayer", (data) => {
+        const room = data.room;
+        if (
+            rooms[room] &&
+            rooms[room].owner === socket.id &&
+            rooms[room].players.includes(data.nickname)
+        ) {
+            const index = rooms[room].players.indexOf(data.nickname);
+            rooms[room].players.splice(index, 1);
+            const kickedSocket = Array.from(io.sockets.sockets.values()).find(
+                (s) => s.nickname === data.nickname,
+            );
+            if (kickedSocket) {
+                kickedSocket.leave(room);
+                kickedSocket.emit("kickedFromRoom", { room: room });
+                console.log(`${data.nickname} выгнан из комнаты ${room}`);
+            }
+            io.to(room).emit("syncState", rooms[room]);
+        }
+    });
+
     socket.on("syncState", (data) => {
         console.log(
             `Получено syncState от ${socket.id} для комнаты ${data.room}:`,
@@ -126,6 +170,7 @@ io.on("connection", (socket) => {
                 players: [],
                 moveHistory: [],
                 owner: data.owner ? socket.id : null,
+                joinRequests: [],
             };
         }
         socket.nickname = data.nickname;
@@ -139,6 +184,7 @@ io.on("connection", (socket) => {
             players: rooms[data.room].players,
             moveHistory: data.moveHistory || [],
             owner: rooms[data.room].owner || (data.owner ? socket.id : null),
+            joinRequests: rooms[data.room].joinRequests,
         };
         io.to(data.room).emit("syncState", rooms[data.room]);
         console.log(`Отправлено syncState всем в комнате ${data.room}`);
